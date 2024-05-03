@@ -1,203 +1,132 @@
 import pandas as pd
-import numpy  as np
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.feature_selection import SelectKBest, chi2
-import warnings
-from sklearn.neural_network import MLPClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.model_selection import train_test_split
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import LeaveOneOut,cross_val_score
-from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import plot_confusion_matrix
-from sklearn.metrics import accuracy_score
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
-from sklearn import model_selection, mrmr
-from sklearn.model_selection import cross_val_score
-from sklearn.svm import SVC
-
-# we first picked the genes that were down-regulated 
-
-dataset_ig = pd.read_csv("D:/g2_dr-0.7.csv")
-X_ig = dataset_ig.drop('Target', axis = 1)
-y_ig = dataset_ig['Target']
-X_train_ig, X_test_ig, y_train_ig, y_test_ig = train_test_split(X_ig, y_ig, test_size=0.3, random_state=0)
-
-from sklearn.feature_selection import mutual_info_classif
-# determine the mutual information
-mutual_info = mutual_info_classif(X_train_ig, y_train_ig)
-mutual_info
-
-mutual_info = pd.Series(mutual_info)
-mutual_info.index = X_train_ig.columns
-mutual_info.sort_values(ascending=False)
-
-mutual_info = pd.Series(mutual_info)
-mutual_info.index = X_train_ig.columns
-mutual_info.sort_values(ascending=False)
-
-from sklearn.feature_selection import SelectKBest
-#No we Will select the  top 5 important features
-sel_five_cols = SelectKBest(mutual_info_classif, k=5).fit(X_train_ig, y_train_ig)
-X_train_ig.columns[sel_five_cols.get_support()]
-
-X_ig = X_ig[['TRIM16', 'GJA3', 'LOC51252', 'TSGA14', 'DHX30']]
-
-
-    
-model = RandomForestClassifier()
-# fit the model
-model.fit(X_ig, y_ig)
-# get importance
-importance = model.feature_importances_
-# summarize feature importance
-for i,v in enumerate(importance):
- print('Feature: %0d, Score: %.5f' % (i,v))
-# plot feature importance
-pyplot.bar([x for x in range(len(importance))], importance)
-pyplot.show()
-
-X_ig = X_ig[[ 'TRIM16', 'DHX30']]
-
-from sklearn.model_selection import train_test_split
-
-X_train_ig, X_test_ig, y_train_ig, y_test_ig = train_test_split(X_ig, y_ig, test_size=0.2, random_state=0)
-
 from sklearn.preprocessing import StandardScaler
-sc = StandardScaler() 
-X_train_ig = sc.fit_transform(X_train_ig)
-X_test_ig = sc.fit_transform(X_test_ig)
+from sklearn.metrics import classification_report, accuracy_score, auc, roc_curve, precision_recall_curve
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
 
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import plot_precision_recall_curve
-from sklearn.metrics import matthews_corrcoef
+# Load the Down-regulated genes dataset
+dataset_path = "D:/brain_dr_-0.7.csv"
+dataset = pd.read_csv(dataset_path)
 
-svm_classifier=  SVC()
-knn_classifier=  KNeighborsClassifier()
-DT_classifier =  DecisionTreeClassifier()
-ET_classifier =  ExtraTreesClassifier()
-RF_classifier =  RandomForestClassifier()
-nb_classifier =  GaussianNB()
-MLP_classifier =  MLPClassifier()
+# Separate features and target
+X = dataset.drop(columns=['Target'])
+y = dataset['Target']
 
+# Use MIFS to select 5 features
+selector_mifs = SelectKBest(mutual_info_classif, k=5)
+X_selected_mifs = selector_mifs.fit_transform(X, y)
 
-svm_classifier.fit(X_train_ig,y_train_ig)
-knn_classifier.fit(X_train_ig,y_train_ig)
-DT_classifier.fit(X_train_ig,y_train_ig)
-ET_classifier.fit(X_train_ig,y_train_ig)
-RF_classifier.fit(X_train_ig,y_train_ig)
-nb_classifier.fit(X_train_ig,y_train_ig)
-MLP_classifier.fit(X_train_ig,y_train_ig)
+# Get selected feature names
+selected_feature_names = X.columns[selector_mifs.get_support()]
 
-
-plot_precision_recall_curve(svm_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "SVM")
-#plot_precision_recall_curve(knn_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "KNN")
-#plot_precision_recall_curve(DT_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "DT")
-plot_precision_recall_curve(ET_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "ET")
-#plot_precision_recall_curve(RF_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "RF")
-plot_precision_recall_curve(nb_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "NB")
-plot_precision_recall_curve(MLP_classifier, X_test_ig, y_test_ig, ax = plt.gca(),name = "MLP")
-
-plt.title('Precision-Recall curve')
-
-names = ["SVM","Nearest_Neighbors","Decision_Tree",
-         "Extra_Trees", "Random_Forest","Naive_Bayes","Neural_Net"]
-
-classifiers = [
-    SVC(),
-    KNeighborsClassifier(),
-    DecisionTreeClassifier(),
-    ExtraTreesClassifier(),
-    RandomForestClassifier(),
-    GaussianNB(),
-    MLPClassifier()]
-
-from sklearn.metrics import matthews_corrcoef
-scores = []
-for name, clf in zip(names, classifiers):
-    clf.fit(X_train_ig,y_train_ig)
-    score = clf.score(X_test_ig, y_test_ig)
-    y_predict_ig = clf.predict(X_test_ig)
-    print(confusion_matrix(y_test_ig, y_predict_ig))
-    print(accuracy_score(y_test_ig, y_predict_ig))
-    print(classification_report(y_test_ig, y_predict_ig))
-    scores.append(score)
-#calculate Matthews correlation coefficient
-matthews_corrcoef(y_test_ig, y_predict_ig)
-
-scores
-
-df = pd.DataFrame()
-df['name'] = names
-df['score'] = scores
-df
-
-cm = sns.light_palette("green", as_cmap=True)
-s = df.style.background_gradient(cmap=cm)
-s
-
-sns.set(style="whitegrid")
-ax = sns.barplot(y="name", x="score", data=df)
-
-
-from sklearn.metrics import roc_curve, roc_auc_score
- 
-classifiers = [ SVC(probability=True),
-                KNeighborsClassifier(), 
-                DecisionTreeClassifier(),
-                ExtraTreesClassifier(),
-                RandomForestClassifier(),
-                AdaBoostClassifier(),
-                GaussianNB(),
-                MLPClassifier()
-                ]
-
-# Define a result table  (DataFrame)
-result_table = pd.DataFrame(columns=['classifiers', 'fpr','tpr','auc'])
-
-# Train the models 
-for cls in classifiers:
-    model = cls.fit(X_train_ig, y_train_ig)
-    yproba_ig = model.predict_proba(X_test_ig)[::,1]
-    
-    fpr, tpr, _ = roc_curve(y_test_ig,  yproba_ig)
-    auc = roc_auc_score(y_test_ig, yproba_ig)
-    
-    result_table = result_table.append({'classifiers':cls.__class__.__name__,
-                                        'fpr':fpr, 
-                                        'tpr':tpr, 
-                                        'auc':auc}, ignore_index=True)
-
-# Set name of the classifiers as index labels
-result_table.set_index('classifiers', inplace=True)
-
-fig = plt.figure(figsize=(10,8))
-
-for i in result_table.index:
-    plt.plot(result_table.loc[i]['fpr'], 
-             result_table.loc[i]['tpr'], 
-             label="{}, AUC={:.3f}".format(i, result_table.loc[i]['auc']))
-    
-plt.plot([0,1], [0,1], color='orange', linestyle='--')
-
-plt.xticks(np.arange(0.0, 1.1, step=0.1))
-plt.xlabel("Flase Positive Rate", fontsize=15)
-
-plt.yticks(np.arange(0.0, 1.1, step=0.1))
-plt.ylabel("True Positive Rate", fontsize=15)
-
-plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
-plt.legend(prop={'size':13}, loc='lower right')
-
+# Plot feature importance from MIFS
+plt.figure(figsize=(10, 6))
+sns.barplot(x=X.columns[selector_mifs.get_support()], y=selector_mifs.scores_[selector_mifs.get_support()])
+plt.title("Feature Importance of Selected 5 Features from MIFS")
+plt.xticks(rotation=45)
 plt.show()
 
+# Use feature importance to select top 2 features from the 5 selected features
+importances = selector_mifs.scores_[selector_mifs.get_support()]
+top_features_indices = np.argsort(importances)[::-1][:2]
+selected_features_final = selected_feature_names[top_features_indices]
 
+# Display selected features based on importance
+print("Top 2 Selected Features:")
+for feature in selected_features_final:
+    print(feature)
+
+# Split data into train and test sets
+X_final = X[selected_features_final]
+X_train, X_test, y_train, y_test = train_test_split(X_final, y, test_size=0.2, random_state=42)
+
+# Scale features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Initialize classifiers
+classifiers = {
+    "SVC": SVC(probability=True),
+    "KNeighborsClassifier": KNeighborsClassifier(),
+    "DecisionTreeClassifier": DecisionTreeClassifier(),
+    "ExtraTreesClassifier": ExtraTreesClassifier(),
+    "RandomForestClassifier": RandomForestClassifier(),
+    "MLPClassifier": MLPClassifier()
+}
+
+# Combine predictions for ROC and Precision-Recall curves
+roc_combined = {}
+pr_combined = {}
+results = {}
+for name, clf in classifiers.items():
+    clf.fit(X_train_scaled, y_train)
+    y_pred_proba = clf.predict_proba(X_test_scaled)[:, 1]
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+    precision, recall, _ = precision_recall_curve(y_test, y_pred_proba)
+    roc_combined[name] = (fpr, tpr)
+    pr_combined[name] = (precision, recall)
+    
+    y_pred = clf.predict(X_test_scaled)
+    classification_rep = classification_report(y_test, y_pred)
+    results[name] = {
+        'classification_report': classification_rep
+    }
+    
+    acc = accuracy_score(y_test, y_pred)
+    results[name]['accuracy'] = acc
+
+# Plot combined ROC curve
+plt.figure(figsize=(10, 6))
+for name, (fpr, tpr) in roc_combined.items():
+    plt.plot(fpr, tpr, label=f'{name} (AUC = {auc(fpr, tpr):.2f})')
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Combined ROC Curve')
+plt.legend()
+plt.show()
+
+# Plot combined Precision-Recall curve
+plt.figure(figsize=(10, 6))
+for name, (precision, recall) in pr_combined.items():
+    plt.plot(recall, precision, label=f'{name} (AUC = {auc(recall, precision):.2f})')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Combined Precision-Recall Curve')
+plt.legend()
+plt.show()
+
+# Display classification reports
+for name, result in results.items():
+    print(f"Classifier: {name}")
+    print(result['classification_report'])
+    print("=" * 50)
+
+# Classification report and bar plot for all classifiers with space between bars
+plt.figure(figsize=(12, 6))
+
+bar_width = 0.35  # Width of each bar
+bar_positions = np.arange(len(classifiers)) * 0.5  # Adjust spacing between bars
+
+accuracies = [results[name]['accuracy'] for name in classifiers]
+
+for i, (name, clf) in enumerate(classifiers.items()):
+    plt.bar(bar_positions[i], accuracies[i], width=bar_width, align='center', label=name)
+    plt.text(bar_positions[i], accuracies[i] + 0.005, f'{accuracies[i]:.2f}', ha='center', va='bottom')
+
+plt.title('Classifier Accuracies')
+plt.xlabel('Classifier')
+plt.ylabel('Accuracy')
+plt.xticks(bar_positions, list(classifiers.keys()), rotation=45)
+plt.legend()
+plt.tight_layout()
+plt.show()
